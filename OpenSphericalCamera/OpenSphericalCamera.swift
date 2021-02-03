@@ -21,7 +21,7 @@ public protocol OSCBase: class {
     func get(_ urlString: String, thumbnailed: Bool, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) // Added in v2
 }
 
-public protocol OSCProtocol: class, OSCBase {
+public protocol OSCProtocol: OSCBase {
     func info(completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void))
     func state(completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void))
     func checkForUpdates(stateFingerprint: String, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void))
@@ -31,7 +31,7 @@ public protocol OSCProtocol: class, OSCBase {
     func status(id: String, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void))
 }
 
-public protocol OSCCameraCommand: class, OSCProtocol {
+public protocol OSCCameraCommand: OSCProtocol {
     func startSession(progressNeeded: Bool, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) // Deprecated in v2
     func updateSession(sessionId: String, progressNeeded: Bool, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) // Deprecated in v2
     func closeSession(sessionId: String, progressNeeded: Bool, completionHandler: ((Data?, URLResponse?, Error?) -> Void)?) // Deprecated in v2
@@ -125,7 +125,7 @@ open class OpenSphericalCamera: OSCCameraCommand {
 
         self.info { (data, response, error) in
             if let data = data , error == nil {
-                if let jsonDic = try? JSONSerialization.jsonObject(with: data, options: JSONSerialization.ReadingOptions.mutableContainers) as! [String: Any] {
+                if let jsonDic = try? JSONSerialization.jsonObject(with: data, options: .mutableContainers) as? [String: Any] {
                     info.manufacturer = (jsonDic["manufacturer"] as? String) ?? ""
                     info.model = (jsonDic["model"] as? String) ?? ""
                     info.serialNumber = (jsonDic["serialNumber"] as? String) ?? ""
@@ -166,7 +166,7 @@ public extension OSCCameraCommand {
 
     // MARK: OSCBase Methods
 
-    public func cancel() {
+    func cancel() {
         if let task = self.task {
             switch task.state {
             case .running:
@@ -181,7 +181,7 @@ public extension OSCCameraCommand {
         }
     }
 
-    public func get(_ urlString: String, thumbnailed: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) { // Added in v2
+    func get(_ urlString: String, thumbnailed: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) { // Added in v2
         self.cancel()
 
         let url = URL(string: thumbnailed ? urlString + "?type=thumb" : urlString)!
@@ -194,7 +194,7 @@ public extension OSCCameraCommand {
 
     // MARK: - OSCProtocol Methods
 
-    public func info(completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) {
+    func info(completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) {
         self.cancel()
 
         let url = URL(string: "http://\(ipAddress):\(httpPort)/osc/info")!
@@ -205,7 +205,7 @@ public extension OSCCameraCommand {
         self.task!.resume()
     }
 
-    public func state(completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) {
+    func state(completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) {
         self.cancel()
 
         let url = URL(string: "http://\(ipAddress):\(httpPort)/osc/state")!
@@ -217,10 +217,10 @@ public extension OSCCameraCommand {
         self.task!.resume()
     }
 
-    public func checkForUpdates(stateFingerprint: String, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) {
+    func checkForUpdates(stateFingerprint: String, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) {
         self.cancel()
 
-        let url = URL(string: "http://\(ipAddress):\(httpUpdatesPort)/osc/checkForUpdates")!
+        let url = URL(string: "http://\(ipAddress):\(String(describing: httpUpdatesPort))/osc/checkForUpdates")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json; charaset=utf-8", forHTTPHeaderField: "Content-Type")
@@ -237,7 +237,7 @@ public extension OSCCameraCommand {
         self.task!.resume()
     }
 
-    public func getRequestForExecute(_ name: String, parameters: [String: Any]? = nil) -> URLRequest {
+    func getRequestForExecute(_ name: String, parameters: [String: Any]? = nil) -> URLRequest {
         let url = URL(string: "http://\(ipAddress):\(httpPort)/osc/commands/execute")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -255,7 +255,7 @@ public extension OSCCameraCommand {
         return request
     }
 
-    public func execute(_ name: String, parameters: [String: Any]? = nil, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) {
+    func execute(_ name: String, parameters: [String: Any]? = nil, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) {
         self.cancel()
 
         let request = getRequestForExecute(name, parameters: parameters)
@@ -267,7 +267,7 @@ public extension OSCCameraCommand {
         self.task!.resume()
     }
 
-    public func execute(_ name: String, parameters: [String: Any]? = nil, delegate: URLSessionDelegate) {
+    func execute(_ name: String, parameters: [String: Any]? = nil, delegate: URLSessionDelegate) {
         self.cancel()
 
         let urlSession = URLSession(configuration: URLSessionConfiguration.default,
@@ -277,7 +277,7 @@ public extension OSCCameraCommand {
         self.task!.resume()
     }
 
-    public func status(id: String, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) {
+    func status(id: String, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) {
         self.cancel()
 
         let url = URL(string: "http://\(ipAddress):\(httpPort)/osc/commands/status")!
@@ -296,7 +296,7 @@ public extension OSCCameraCommand {
         self.task!.resume()
     }
 
-    public func getWaitDoneHandler(progressNeeded: Bool = false, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) -> (Data?, URLResponse?, Error?) -> Void {
+    func getWaitDoneHandler(progressNeeded: Bool = false, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) -> (Data?, URLResponse?, Error?) -> Void {
         var waitDoneHandler: ((Data?, URLResponse?, Error?) -> Void)!
         waitDoneHandler = { (data, response, error) in
             guard let d = data , error == nil else {
@@ -304,7 +304,7 @@ public extension OSCCameraCommand {
                 return
             }
 
-            let jsonDic = try? JSONSerialization.jsonObject(with: d, options: JSONSerialization.ReadingOptions.mutableContainers) as! [String: Any]
+            let jsonDic = try? JSONSerialization.jsonObject(with: d, options: .mutableContainers) as? [String: Any]
             guard let dic = jsonDic, let rawState = dic["state"] as? String, let state = OSCCommandState(rawValue: rawState) else {
                 completionHandler?(data, response, error)
                 return
@@ -333,35 +333,35 @@ public extension OSCCameraCommand {
 
     // MARK: - OSCCameraCommand Methods
 
-    public func startSession(progressNeeded: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) { // Deprecated in v2
+    func startSession(progressNeeded: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) { // Deprecated in v2
         self.execute("camera.startSession", completionHandler: self.getWaitDoneHandler(progressNeeded: progressNeeded, completionHandler: completionHandler))
     }
 
-    public func updateSession(sessionId: String, progressNeeded: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) { // Deprecated in v2
+    func updateSession(sessionId: String, progressNeeded: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) { // Deprecated in v2
         self.execute("camera.updateSession", parameters: ["sessionId": sessionId], completionHandler: self.getWaitDoneHandler(progressNeeded: progressNeeded, completionHandler: completionHandler))
     }
 
-    public func closeSession(sessionId: String, progressNeeded: Bool = false, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) { // Deprecated in v2
+    func closeSession(sessionId: String, progressNeeded: Bool = false, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) { // Deprecated in v2
         self.execute("camera.closeSession", parameters: ["sessionId": sessionId], completionHandler: self.getWaitDoneHandler(progressNeeded: progressNeeded, completionHandler: completionHandler))
     }
 
-    public func takePicture(sessionId: String, progressNeeded: Bool = false, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) { // Deprecated in v2
+    func takePicture(sessionId: String, progressNeeded: Bool = false, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) { // Deprecated in v2
         self.execute("camera.takePicture", parameters: ["sessionId": sessionId], completionHandler: self.getWaitDoneHandler(progressNeeded: progressNeeded, completionHandler: completionHandler))
     }
 
-    public func takePicture(progressNeeded: Bool = false, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) {
+    func takePicture(progressNeeded: Bool = false, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) {
         self.execute("camera.takePicture", completionHandler: self.getWaitDoneHandler(progressNeeded: progressNeeded, completionHandler: completionHandler))
     }
 
-    public func startCapture(progressNeeded: Bool = false, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) { // Added in v2
+    func startCapture(progressNeeded: Bool = false, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) { // Added in v2
         self.execute("camera.startCapture", completionHandler: self.getWaitDoneHandler(progressNeeded: progressNeeded, completionHandler: completionHandler))
     }
 
-    public func stopCapture(progressNeeded: Bool = false, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) { // Added in v2
+    func stopCapture(progressNeeded: Bool = false, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) { // Added in v2
         self.execute("camera.stopCapture", completionHandler: self.getWaitDoneHandler(progressNeeded: progressNeeded, completionHandler: completionHandler))
     }
 
-    public func listImages(entryCount: Int, maxSize: Int? = nil, continuationToken: String? = nil, includeThumb: Bool? = nil, progressNeeded: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) { // Deprecated in v2
+    func listImages(entryCount: Int, maxSize: Int? = nil, continuationToken: String? = nil, includeThumb: Bool? = nil, progressNeeded: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) { // Deprecated in v2
         var parameters: [String: Any] = ["entryCount": entryCount]
         if let maxSize = maxSize {
             parameters["maxSize"] = maxSize
@@ -375,7 +375,7 @@ public extension OSCCameraCommand {
         self.execute("camera.listImages", parameters: parameters, completionHandler: self.getWaitDoneHandler(progressNeeded: progressNeeded, completionHandler: completionHandler))
     }
 
-    public func listFiles(fileType: FileType, startPosition: Int? = nil, entryCount: Int, maxThumbSize: Int? = nil, progressNeeded: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) { // Added in v2
+    func listFiles(fileType: FileType, startPosition: Int? = nil, entryCount: Int, maxThumbSize: Int? = nil, progressNeeded: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) { // Added in v2
         var parameters: [String: Any] = ["fileType": fileType.rawValue, "entryCount": entryCount]
         if let startPosition = startPosition {
             parameters["startPosition"] = startPosition
@@ -386,17 +386,17 @@ public extension OSCCameraCommand {
         self.execute("camera.listFiles", parameters: parameters, completionHandler: self.getWaitDoneHandler(progressNeeded: progressNeeded, completionHandler: completionHandler))
     }
 
-    public func delete(fileUri: String, progressNeeded: Bool = false, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) { // Modified in v2
+    func delete(fileUri: String, progressNeeded: Bool = false, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) { // Modified in v2
         let parameters: [String: Any] = ["fileUri": fileUri]
         self.execute("camera.delete", parameters: parameters, completionHandler: self.getWaitDoneHandler(progressNeeded: progressNeeded, completionHandler: completionHandler))
     }
 
-    public func delete(fileUrls: [String], progressNeeded: Bool = false, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) {
+    func delete(fileUrls: [String], progressNeeded: Bool = false, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) {
         let parameters: [String: Any] = ["fileUrls": fileUrls]
         self.execute("camera.delete", parameters: parameters, completionHandler: self.getWaitDoneHandler(progressNeeded: progressNeeded, completionHandler: completionHandler))
     }
 
-    public func getImage(fileUri: String, maxSize: Int? = nil, progressNeeded: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) { // Deprecated in v2
+    func getImage(fileUri: String, maxSize: Int? = nil, progressNeeded: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) { // Deprecated in v2
         var parameters: [String: Any] = ["fileUri": fileUri]
         if let maxSize = maxSize {
             parameters["maxSize"] = maxSize
@@ -404,36 +404,36 @@ public extension OSCCameraCommand {
         self.execute("camera.getImage", parameters: parameters, completionHandler: self.getWaitDoneHandler(progressNeeded: progressNeeded, completionHandler: completionHandler))
     }
 
-    public func getMetadata(fileUri: String, progressNeeded: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) { // Deprecated in v2
+    func getMetadata(fileUri: String, progressNeeded: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) { // Deprecated in v2
         let parameters: [String: Any] = ["fileUri": fileUri]
         self.execute("camera.getMetadata", parameters: parameters, completionHandler: self.getWaitDoneHandler(progressNeeded: progressNeeded, completionHandler: completionHandler))
     }
 
-    public func getLivePreview(_ completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) { // Added in v2
+    func getLivePreview(_ completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) { // Added in v2
         self.execute("camera.getLivePreview", delegate: LivePreviewDelegate(completionHandler: completionHandler))
     }
 
-    public func getOptions(sessionId: String, optionNames: [String], progressNeeded: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) { // Deprecated in v2
+    func getOptions(sessionId: String, optionNames: [String], progressNeeded: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) { // Deprecated in v2
         self.execute("camera.getOptions", parameters: ["sessionId": sessionId, "optionNames": optionNames], completionHandler: self.getWaitDoneHandler(progressNeeded: progressNeeded, completionHandler: completionHandler))
     }
 
-    public func getOptions(optionNames: [String], progressNeeded: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) {
+    func getOptions(optionNames: [String], progressNeeded: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) {
         self.execute("camera.getOptions", parameters: ["optionNames": optionNames], completionHandler: self.getWaitDoneHandler(progressNeeded: progressNeeded, completionHandler: completionHandler))
     }
 
-    public func reset(progressNeeded: Bool = false, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) { // Added in v2
+    func reset(progressNeeded: Bool = false, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) { // Added in v2
         self.execute("camera.reset", completionHandler: self.getWaitDoneHandler(progressNeeded: progressNeeded, completionHandler: completionHandler))
     }
 
-    public func setOptions(sessionId: String, options: [String: Any], progressNeeded: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) { // Deprecated in v2
+    func setOptions(sessionId: String, options: [String: Any], progressNeeded: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) { // Deprecated in v2
         self.execute("camera.setOptions", parameters: ["sessionId": sessionId, "options": options], completionHandler: self.getWaitDoneHandler(progressNeeded: progressNeeded, completionHandler: completionHandler))
     }
 
-    public func setOptions(options: [String: Any], progressNeeded: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) {
+    func setOptions(options: [String: Any], progressNeeded: Bool = false, completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) {
         self.execute("camera.setOptions", parameters: ["options": options], completionHandler: self.getWaitDoneHandler(progressNeeded: progressNeeded, completionHandler: completionHandler))
     }
 
-    public func processPicture(previewFileUrls: [String], progressNeeded: Bool = false, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) { // Added in v2
+    func processPicture(previewFileUrls: [String], progressNeeded: Bool = false, completionHandler: ((Data?, URLResponse?, Error?) -> Void)? = nil) { // Added in v2
         let parameters: [String: Any] = ["previewFileUrls": previewFileUrls]
         self.execute("camera.processPicture", parameters: parameters, completionHandler: self.getWaitDoneHandler(progressNeeded: progressNeeded, completionHandler: completionHandler))
     }

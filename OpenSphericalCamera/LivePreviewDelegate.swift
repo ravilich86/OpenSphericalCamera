@@ -27,7 +27,7 @@ class LivePreviewDelegate: NSObject, URLSessionDataDelegate {
             var eoi: Int?
             var i = 0
 
-            dataBuffer.withUnsafeBytes { (bytes: UnsafePointer<UInt8>) -> Void in
+            dataBuffer.withUnsafeBytes { (bytes) -> Void in
                 while i < dataBuffer.count - 1 {
                     if JPEG_SOI[0] == bytes[i] && JPEG_SOI[1] == bytes[i + 1] {
                         soi = i
